@@ -339,13 +339,10 @@ fun SimpleUsageChart(
 }
 
 private fun drawableToBitmap(drawable: Drawable): Bitmap {
-    val bitmap = Bitmap.createBitmap(
-        drawable.intrinsicWidth.coerceAtLeast(48),
-        drawable.intrinsicHeight.coerceAtLeast(48),
-        Bitmap.Config.ARGB_8888
-    )
+    val targetSize = 96
+    val bitmap = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
-    drawable.setBounds(0, 0, canvas.width, canvas.height)
+    drawable.setBounds(0, 0, targetSize, targetSize)
     drawable.draw(canvas)
     return bitmap
 }

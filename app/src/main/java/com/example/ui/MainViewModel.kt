@@ -21,6 +21,7 @@ import com.example.data.repository.NetworkStatsRepository
 import com.example.data.repository.UserPreferencesRepository
 import com.example.util.NotificationHelper
 import com.example.util.PermissionUtils
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +36,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val networkStatsRepository = NetworkStatsRepository(application, db.usageSnapshotDao())
     private val userPreferencesRepository = UserPreferencesRepository(application)
     private val investigationRepository = InvestigationRepository(networkStatsRepository)
+
+    private var loadJob: Job? = null
+    private var appsJob: Job? = null
 
     val isOnboardingCompleted: StateFlow<Boolean> = userPreferencesRepository.isOnboardingCompleted
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
@@ -124,9 +128,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun checkPermission() {
         val granted = PermissionUtils.hasUsageStatsPermission(getApplication())
         _hasUsagePermission.value = granted
-        if (granted) {
-            refreshData()
-        }
     }
 
     fun setTimeRange(timeRange: TimeRange) {
@@ -143,8 +144,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun loadData() {
-        viewModelScope.launch {
-            checkPermission()
+        _hasUsagePermission.value = PermissionUtils.hasUsageStatsPermission(getApplication())
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             val plan = currentPlan.value ?: dataPlanRepository.getActivePlan()
 
             // Load usage for today
@@ -152,8 +154,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val todayBytes = todayApps.sumOf { it.mobileBytes }
             _todayUsageBytes.value = todayBytes
 
-            // Load usage for current selected range
-            loadAppsForRange(_selectedTimeRange.value)
+            // Update apps list for current selected range
+            if (_selectedTimeRange.value == TimeRange.TODAY) {
+                _appsUsageList.value = todayApps
+            } else {
+                loadAppsForRange(_selectedTimeRange.value)
+            }
 
             // Calculate historical baseline
             val historyCount = networkStatsRepository.getHistoricalDaysCount()
@@ -193,7 +199,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun loadAppsForRange(range: TimeRange) {
-        viewModelScope.launch {
+        appsJob?.cancel()
+        appsJob = viewModelScope.launch {
             val apps = networkStatsRepository.getUsageData(range)
             _appsUsageList.value = apps
         }

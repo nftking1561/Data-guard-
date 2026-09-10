@@ -50,7 +50,7 @@ object NotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ALERTS)
-            .setSmallIcon(R.drawable.data_guard_icon_1789024875585)
+            .setSmallIcon(R.drawable.ic_stat_data_guard)
             .setContentTitle(title)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))

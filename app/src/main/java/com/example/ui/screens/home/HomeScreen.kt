@@ -20,9 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ElectricBolt
-import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
@@ -31,14 +28,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -57,7 +52,6 @@ import com.example.ui.theme.ColorInfo
 import com.example.ui.theme.ColorSafe
 import com.example.ui.theme.ColorWarning
 import com.example.util.DataFormatUtils
-import java.util.Calendar
 
 @Composable
 fun HomeScreen(
@@ -77,17 +71,17 @@ fun HomeScreen(
     onOptimizeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val greeting = rememberGreeting()
+    val carrier = dataPlan?.networkCarrier ?: "MTN"
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // TOP HEADER
         item {
             Spacer(modifier = Modifier.height(6.dp))
-            // Header Greeting
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -95,38 +89,38 @@ fun HomeScreen(
             ) {
                 Column {
                     Text(
-                        text = "$greeting 👋",
+                        text = "DATA GUARD",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        letterSpacing = 1.sp
                     )
                     Text(
-                        text = if (dataPlan != null) "${dataPlan.networkCarrier} • ${dataPlan.planName}" else "Mobile Data Intelligence",
+                        text = "$carrier • Mobile Data",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                // Global Status Pill
                 val (statusText, statusColor) = when (runwayInfo.status) {
-                    RunwayStatus.ON_TRACK -> Pair("On Track", ColorSafe)
+                    RunwayStatus.ON_TRACK -> Pair("On track", ColorSafe)
                     RunwayStatus.LEARNING -> Pair("Learning", ColorInfo)
-                    RunwayStatus.FASTER_THAN_USUAL -> Pair("High Pace", ColorWarning)
-                    RunwayStatus.CRITICAL_SHORTAGE -> Pair("Runway Risk", ColorCritical)
-                    RunwayStatus.NO_PLAN -> Pair("No Plan", MaterialTheme.colorScheme.outline)
+                    RunwayStatus.FASTER_THAN_USUAL -> Pair("High pace", ColorWarning)
+                    RunwayStatus.CRITICAL_SHORTAGE -> Pair("Runway risk", ColorCritical)
+                    RunwayStatus.NO_PLAN -> Pair("No plan", MaterialTheme.colorScheme.outline)
                 }
                 StatusPill(text = statusText, color = statusColor)
             }
         }
 
-        // Permission Warning if not yet granted
+        // Permission Banner if required
         if (!hasUsagePermission) {
             item {
                 PermissionWarningBanner(onGrantClick = onGrantPermissionClick)
             }
         }
 
-        // STATE A: No Plan Configured
+        // HERO REMAINING CARD (or Plan Setup if no plan)
         if (dataPlan == null) {
             item {
                 Card(
@@ -135,23 +129,25 @@ fun HomeScreen(
                         .testTag("no_plan_card"),
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Let's set up your data plan",
-                            style = MaterialTheme.typography.titleMedium,
+                            text = "NO PLAN CONFIGURED",
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = MaterialTheme.colorScheme.outline,
+                            letterSpacing = 1.sp
                         )
                         Text(
-                            text = "Add your plan size and expiry date to track your Data Runway and daily budgets accurately.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            text = "Set plan size & renewal date",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Button(
                             onClick = onAddPlanClick,
@@ -160,31 +156,50 @@ fun HomeScreen(
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Add Data Plan")
+                            Text("Set Plan")
                         }
                     }
                 }
             }
         } else {
-            // HERO CARD: Mobile Data Remaining
             item {
-                HeroDataCard(
-                    plan = dataPlan,
+                HeroRemainingCard(
                     runwayInfo = runwayInfo
                 )
             }
         }
 
-        // TODAY USAGE CARD
+        // TODAY CARD
         item {
-            TodayUsageCard(
+            TodayCard(
                 todayBytes = todayUsageBytes,
                 normalBytes = normalDailyUsageBytes,
                 status = runwayInfo.status
             )
         }
 
-        // SIGNATURE PRIMARY ACTION: 🔎 WHAT ATE MY DATA?
+        // WHAT'S USING YOUR DATA? CARD (Top 3 Apps + Background Warning + STOP IT)
+        item {
+            WhatsUsingYourDataCard(
+                topApps = topApps.take(3),
+                anomalies = anomalies,
+                onAppClick = onAppClick,
+                onStopClick = onOptimizeClick,
+                onSeeAllClick = onSeeAllAppsClick
+            )
+        }
+
+        // DATA RUNWAY CARD
+        if (dataPlan != null) {
+            item {
+                DataRunwayCard(
+                    runwayInfo = runwayInfo,
+                    onOptimizeClick = onOptimizeClick
+                )
+            }
+        }
+
+        // 🔎 WHAT ATE MY DATA? (Primary Action)
         item {
             Card(
                 modifier = Modifier
@@ -195,7 +210,7 @@ fun HomeScreen(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -206,7 +221,7 @@ fun HomeScreen(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Box(
                             modifier = Modifier
@@ -227,10 +242,10 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onPrimary,
-                                letterSpacing = 0.5.sp
+                                letterSpacing = 0.8.sp
                             )
                             Text(
-                                text = "Instant detective report on top culprits",
+                                text = "Instant detective report",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
                             )
@@ -246,155 +261,37 @@ fun HomeScreen(
             }
         }
 
-        // DATA RUNWAY CARD
-        if (dataPlan != null) {
-            item {
-                RunwayCard(
-                    runwayInfo = runwayInfo,
-                    onOptimizeClick = onOptimizeClick
-                )
-            }
-        }
-
-        // WARNING / ANOMALY INSIGHT (if any app had unusual background or spike)
-        val anomaly = anomalies.firstOrNull()
-        if (anomaly != null) {
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("anomaly_alert_card"),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = ColorCritical.copy(alpha = 0.12f)
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = ColorCritical
-                            )
-                            Text(
-                                text = if (anomaly.isBackgroundDominant) "Background Data Alert" else "Unusual Usage Spike",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = ColorCritical
-                            )
-                        }
-                        Text(
-                            text = if (anomaly.isBackgroundDominant) {
-                                "${anomaly.appName} used ${DataFormatUtils.formatBytes(anomaly.backgroundBytes)} in the background today."
-                            } else {
-                                "${anomaly.appName} used ${String.format("%.1f", anomaly.multipleOfNormal)}× your normal daily amount."
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            Button(
-                                onClick = onWhatAteMyDataClick,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = ColorCritical
-                                ),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Text("Investigate")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // DATA HEALTH SCORE PREVIEW
         item {
-            DataHealthScoreCard(healthScore = healthScore)
-        }
-
-        // WHAT'S USING YOUR DATA? (Top 3 Apps)
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "What's Using Your Data?",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "See all apps",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .clickable(onClick = onSeeAllAppsClick)
-                        .testTag("see_all_apps_button")
-                )
-            }
-        }
-
-        items(topApps.take(3)) { app ->
-            AppUsageRow(
-                app = app,
-                onClick = { onAppClick(app) },
-                showWifi = false
-            )
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
 @Composable
-private fun HeroDataCard(
-    plan: DataPlan,
+private fun HeroRemainingCard(
     runwayInfo: DataRunwayInfo
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("hero_data_card"),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier.padding(22.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(
-                text = "YOUR MOBILE DATA",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                letterSpacing = 1.sp
-            )
-
             Row(
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = DataFormatUtils.formatBytes(runwayInfo.remainingBytes),
-                    style = MaterialTheme.typography.displaySmall,
+                    style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -406,13 +303,6 @@ private fun HeroDataCard(
                 )
             }
 
-            // Grandma explanation
-            Text(
-                text = DataFormatUtils.getGrandmaExplanation(runwayInfo.remainingBytes),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
             // Progress Bar
             val total = runwayInfo.planSizeBytes.coerceAtLeast(1L)
             val progress = (runwayInfo.usedBytesInPeriod.toFloat() / total.toFloat()).coerceIn(0f, 1f)
@@ -420,14 +310,14 @@ private fun HeroDataCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(10.dp)
+                    .height(8.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(progress)
-                        .height(10.dp)
+                        .height(8.dp)
                         .clip(CircleShape)
                         .background(
                             Brush.horizontalGradient(
@@ -440,28 +330,18 @@ private fun HeroDataCard(
                 )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "${DataFormatUtils.formatBytes(runwayInfo.usedBytesInPeriod)} used",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "${runwayInfo.daysRemaining} days remaining",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = "${DataFormatUtils.formatBytes(runwayInfo.usedBytesInPeriod)} used • ${runwayInfo.daysRemaining} days left",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
 @Composable
-private fun TodayUsageCard(
+private fun TodayCard(
     todayBytes: Long,
     normalBytes: Long,
     status: RunwayStatus
@@ -478,7 +358,7 @@ private fun TodayUsageCard(
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -487,23 +367,24 @@ private fun TodayUsageCard(
             ) {
                 Text(
                     text = "TODAY",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.outline,
                     letterSpacing = 1.sp
                 )
 
                 if (status == RunwayStatus.LEARNING) {
                     Text(
-                        text = "Learning baseline",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = "Learning",
+                        style = MaterialTheme.typography.labelMedium,
                         color = ColorInfo
                     )
                 } else if (normalBytes > 0) {
                     val isAbove = todayBytes > normalBytes
                     val pct = DataFormatUtils.formatPercentageDiff(todayBytes, normalBytes)
+                    val statusText = if (isAbove) "🔴 $pct higher" else "🟢 On track"
                     Text(
-                        text = (if (isAbove) "🔴 " else "🟢 ") + pct,
+                        text = statusText,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = if (isAbove) ColorCritical else ColorSafe
@@ -513,20 +394,14 @@ private fun TodayUsageCard(
 
             Text(
                 text = DataFormatUtils.formatBytes(todayBytes),
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
             if (normalBytes > 0 && status != RunwayStatus.LEARNING) {
                 Text(
-                    text = "Your normal usage: ${DataFormatUtils.formatBytes(normalBytes)}/day",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                Text(
-                    text = "DATA GUARD is learning your normal daily usage pattern.",
+                    text = "Normal: ${DataFormatUtils.formatBytes(normalBytes)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -536,28 +411,24 @@ private fun TodayUsageCard(
 }
 
 @Composable
-private fun RunwayCard(
-    runwayInfo: DataRunwayInfo,
-    onOptimizeClick: () -> Unit
+private fun WhatsUsingYourDataCard(
+    topApps: List<AppUsageItem>,
+    anomalies: List<AnomalyInfo>,
+    onAppClick: (AppUsageItem) -> Unit,
+    onStopClick: () -> Unit,
+    onSeeAllClick: () -> Unit
 ) {
-    val isShortage = runwayInfo.expectedShortageDays > 0
-    val cardColor = if (isShortage) {
-        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("runway_card"),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -565,58 +436,93 @@ private fun RunwayCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "DATA RUNWAY",
-                    style = MaterialTheme.typography.labelMedium,
+                    text = "WHAT'S USING YOUR DATA?",
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.outline,
                     letterSpacing = 1.sp
                 )
                 Text(
-                    text = "${runwayInfo.runwayDaysEstimate.toInt()} days",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = if (isShortage) ColorCritical else ColorSafe
+                    text = "See all",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clickable(onClick = onSeeAllClick)
+                        .testTag("see_all_apps_button")
                 )
             }
 
-            Text(
-                text = "At your current usage rate, your data may last approximately ${runwayInfo.runwayDaysEstimate.toInt()} days.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            if (isShortage) {
-                Text(
-                    text = "⚠️ Your plan expires in ${runwayInfo.daysRemaining} days. You may run out approximately ${runwayInfo.expectedShortageDays} days early.",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = ColorCritical
+            // Top 3 Apps
+            topApps.forEach { app ->
+                AppUsageRow(
+                    app = app,
+                    onClick = { onAppClick(app) },
+                    showWifi = false
                 )
+            }
 
-                Button(
-                    onClick = onOptimizeClick,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    modifier = Modifier.testTag("optimize_my_data_button")
-                ) {
-                    Text("Optimize my data")
-                }
-            } else {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = ColorSafe,
-                        modifier = Modifier.size(16.dp)
+            // Compact Background Warning (if an app has background drain or anomaly)
+            val bgAnomaly = anomalies.firstOrNull { it.isBackgroundDominant }
+            val topBgApp = topApps.firstOrNull { it.backgroundBytes > 30L * 1024 * 1024 }
+            val warningTarget = bgAnomaly?.appName ?: topBgApp?.appName
+            val warningBytes = bgAnomaly?.backgroundBytes ?: topBgApp?.backgroundBytes
+
+            if (warningTarget != null && warningBytes != null && warningBytes > 0) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = ColorCritical.copy(alpha = 0.08f)
                     )
-                    Text(
-                        text = "You're on track to comfortably reach your renewal date.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = ColorSafe
-                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = ColorCritical,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "⚠️ $warningTarget",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ColorCritical
+                                )
+                                Text(
+                                    text = "${DataFormatUtils.formatBytes(warningBytes)} • Background",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = onStopClick,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ColorCritical
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.testTag("stop_it_button")
+                        ) {
+                            Text(
+                                text = "STOP IT",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -624,13 +530,20 @@ private fun RunwayCard(
 }
 
 @Composable
-private fun DataHealthScoreCard(healthScore: DataHealthScore) {
+private fun DataRunwayCard(
+    runwayInfo: DataRunwayInfo,
+    onOptimizeClick: () -> Unit
+) {
+    val isShort = runwayInfo.expectedShortageDays > 0
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("health_score_card"),
+            .testTag("runway_card"),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
@@ -642,64 +555,72 @@ private fun DataHealthScoreCard(healthScore: DataHealthScore) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.HealthAndSafety,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "DATA HEALTH",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 1.sp
-                    )
-                }
                 Text(
-                    text = "${healthScore.score} / 100",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = if (healthScore.score >= 75) ColorSafe else ColorWarning
+                    text = "DATA RUNWAY",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.outline,
+                    letterSpacing = 1.sp
+                )
+
+                val statusText = if (isShort) "🔴 ${runwayInfo.expectedShortageDays} days short" else "🟢 You're on track"
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isShort) ColorCritical else ColorSafe
                 )
             }
 
             Text(
-                text = "Rating: ${healthScore.rating}. ${healthScore.topImprovementRecommendation ?: "Your data usage habits are well managed."}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "${runwayInfo.runwayDaysEstimate.toInt()} days",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = if (isShort) ColorCritical else MaterialTheme.colorScheme.onSurface
             )
 
-            // Sub-scores
+            // Visual Runway Bar
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                SubScorePill("Efficiency", "${healthScore.usageEfficiencyScore}/25")
-                SubScorePill("Background", "${healthScore.backgroundWasteScore}/25")
-                SubScorePill("Discipline", "${healthScore.planDisciplineScore}/25")
+                val totalDays = (runwayInfo.runwayDaysEstimate.toInt() + runwayInfo.daysRemaining).coerceAtLeast(1)
+                val runwayFrac = (runwayInfo.runwayDaysEstimate.toFloat() / totalDays.toFloat()).coerceIn(0.1f, 1f)
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(8.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(runwayFrac)
+                            .height(8.dp)
+                            .clip(CircleShape)
+                            .background(if (isShort) ColorCritical else ColorSafe)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Button(
+                    onClick = onOptimizeClick,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier.testTag("optimize_my_data_button")
+                ) {
+                    Text(
+                        text = "OPTIMIZE",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun SubScorePill(label: String, score: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-        Text(text = score, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun rememberGreeting(): String {
-    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-    return when {
-        hour < 12 -> "Good morning"
-        hour < 17 -> "Good afternoon"
-        else -> "Good evening"
     }
 }

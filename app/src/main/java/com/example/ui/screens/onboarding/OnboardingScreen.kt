@@ -23,18 +23,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DataSaverOn
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -65,7 +62,6 @@ fun OnboardingScreen(
     var step by remember { mutableIntStateOf(1) }
     var selectedCarrier by remember { mutableStateOf("MTN") }
 
-    // Plan input state
     var planSizeGb by remember { mutableStateOf("20") }
     var planCostNgn by remember { mutableStateOf("5000") }
 
@@ -97,7 +93,7 @@ fun OnboardingScreen(
                         modifier = Modifier
                             .padding(horizontal = 3.dp)
                             .height(6.dp)
-                            .width(if (i == step) 28.dp else 12.dp)
+                            .width(if (i == step) 28.dp else 10.dp)
                             .clip(CircleShape)
                             .background(
                                 if (isActive) MaterialTheme.colorScheme.primary
@@ -109,35 +105,35 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Step Content
+            // Step Content (Section 60)
             AnimatedContent(targetState = step, label = "OnboardingStep") { currentStep ->
                 when (currentStep) {
-                    1 -> OnboardingSlide(
-                        icon = Icons.Default.Security,
-                        title = "Meet DATA GUARD",
-                        description = "Your phone uses mobile data all day.\n\nDATA GUARD helps you understand where it goes, detect unusual usage, and make your data last longer.",
-                        buttonText = "Get Started",
+                    1 -> StepHeroSlide(
+                        icon = Icons.Default.Shield,
+                        title = "DATA GUARD",
+                        subtitle = "Know where your data goes.",
+                        buttonText = "GET STARTED",
                         onNext = { step = 2 }
                     )
-                    2 -> OnboardingSlide(
-                        icon = Icons.Default.Sensors,
-                        title = "See where your data goes",
-                        description = "Understand the exact data consumption of your apps.\n\nSee how much each app uses, distinguish Wi-Fi from mobile data, and check background activity.",
-                        buttonText = "Continue",
+                    2 -> StepHeroSlide(
+                        icon = Icons.Default.Visibility,
+                        title = "SEE",
+                        subtitle = "Where did it go?",
+                        buttonText = "CONTINUE",
                         onNext = { step = 3 }
                     )
-                    3 -> OnboardingSlide(
-                        icon = Icons.Default.NotificationsActive,
-                        title = "Protect your data",
-                        description = "Never get caught off guard by rapid data drain.\n\nWe alert you when usage suddenly becomes unusually high or when your data runway is in danger.",
-                        buttonText = "Continue",
+                    3 -> StepHeroSlide(
+                        icon = Icons.Default.Search,
+                        title = "INVESTIGATE",
+                        subtitle = "Why did it happen?",
+                        buttonText = "CONTINUE",
                         onNext = { step = 4 }
                     )
-                    4 -> OnboardingSlide(
-                        icon = Icons.Default.Lock,
-                        title = "Your privacy matters",
-                        description = "DATA GUARD is built local-first.\n\nYour usage stats stay on your phone. No tracking servers, no account required, and no selling your personal data.",
-                        buttonText = "Continue",
+                    4 -> StepHeroSlide(
+                        icon = Icons.Default.Shield,
+                        title = "CONTROL",
+                        subtitle = "How do I stop it?",
+                        buttonText = "CONTINUE",
                         onNext = { step = 5 }
                     )
                     5 -> NetworkSelectionSlide(
@@ -183,10 +179,10 @@ fun OnboardingScreen(
 }
 
 @Composable
-private fun OnboardingSlide(
+private fun StepHeroSlide(
     icon: ImageVector,
     title: String,
-    description: String,
+    subtitle: String,
     buttonText: String,
     onNext: () -> Unit
 ) {
@@ -196,7 +192,7 @@ private fun OnboardingSlide(
     ) {
         Box(
             modifier = Modifier
-                .size(96.dp)
+                .size(90.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center
@@ -204,32 +200,32 @@ private fun OnboardingSlide(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(44.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(36.dp))
 
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center,
+            letterSpacing = 1.sp
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = description,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            lineHeight = 26.sp
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(56.dp))
 
         Button(
             onClick = onNext,
@@ -265,29 +261,22 @@ private fun NetworkSelectionSlide(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "What network do you use?",
+            text = "YOUR NETWORK",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            letterSpacing = 1.sp
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Select your primary mobile data provider.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         carriers.forEach { carrier ->
             val isSelected = selectedCarrier == carrier
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 6.dp)
+                    .padding(vertical = 5.dp)
                     .clickable { onCarrierSelected(carrier) }
                     .testTag("carrier_option_$carrier"),
                 shape = RoundedCornerShape(14.dp),
@@ -300,7 +289,7 @@ private fun NetworkSelectionSlide(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(18.dp),
+                        .padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -333,7 +322,7 @@ private fun NetworkSelectionSlide(
             shape = RoundedCornerShape(14.dp)
         ) {
             Text(
-                text = "Continue",
+                text = "CONTINUE",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -368,20 +357,20 @@ private fun PlanSetupSlide(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "What's your data plan?",
+            text = "YOUR PLAN",
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            letterSpacing = 1.sp
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = "Tell us about your $carrier package so we can compute your Data Runway and daily budgets.",
+            text = "Optional.",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -390,7 +379,7 @@ private fun PlanSetupSlide(
             value = planSizeGb,
             onValueChange = onPlanSizeChange,
             label = { Text("Plan Size (GB)") },
-            placeholder = { Text("e.g. 20") },
+            placeholder = { Text("20") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier
                 .fillMaxWidth()
@@ -399,13 +388,13 @@ private fun PlanSetupSlide(
             singleLine = true
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         OutlinedTextField(
             value = costNgn,
             onValueChange = onCostChange,
-            label = { Text("Plan Cost (₦)") },
-            placeholder = { Text("e.g. 5000") },
+            label = { Text("Cost (₦)") },
+            placeholder = { Text("5000") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier
                 .fillMaxWidth()
@@ -425,20 +414,20 @@ private fun PlanSetupSlide(
             shape = RoundedCornerShape(14.dp)
         ) {
             Text(
-                text = "Save Plan & Start",
+                text = "START USING DATA GUARD",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         TextButton(
             onClick = onFinishWithoutPlan,
             modifier = Modifier.testTag("finish_onboarding_no_plan_button")
         ) {
             Text(
-                text = "I don't know / I'll add it later",
+                text = "SKIP FOR NOW",
                 color = MaterialTheme.colorScheme.outline
             )
         }

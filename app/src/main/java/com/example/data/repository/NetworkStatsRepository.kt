@@ -105,17 +105,20 @@ class NetworkStatsRepository(
         } catch (_: Exception) {}
 
         // 3. Assemble and map to installed app information
-        val result = mutableListOf<AppUsageItem>()
-        val allUids = (mobileMap.keys + wifiMap.keys).filter { it >= 10000 } // Normal user installed apps have UID >= 10000
+        val activeUids = (mobileMap.keys + wifiMap.keys)
+            .filter { it >= 10000 }
+            .sortedByDescending { (mobileMap[it]?.totalMobile ?: 0L) + (wifiMap[it] ?: 0L) }
 
-        for (uid in allUids) {
+        val result = mutableListOf<AppUsageItem>()
+        for ((index, uid) in activeUids.withIndex()) {
             val appInfo = installedApps[uid]
             val packageName = appInfo?.packageName ?: (packageManager.getNameForUid(uid) ?: "uid_$uid")
             val appName = appInfo?.let { packageManager.getApplicationLabel(it).toString() } ?: packageName
             val isSystem = appInfo?.let { (it.flags and ApplicationInfo.FLAG_SYSTEM) != 0 } ?: false
-            val icon = appInfo?.let {
-                try { packageManager.getApplicationIcon(it) } catch (_: Exception) { null }
-            }
+            // Limit full icon decoding to the top 25 apps to keep memory footprint under budget
+            val icon = if (index < 25 && appInfo != null) {
+                try { packageManager.getApplicationIcon(appInfo) } catch (_: Exception) { null }
+            } else null
             val stats = mobileMap[uid] ?: StatsAccumulator()
             val wifi = wifiMap[uid] ?: 0L
 

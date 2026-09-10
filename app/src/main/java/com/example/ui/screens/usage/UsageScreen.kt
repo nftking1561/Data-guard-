@@ -12,24 +12,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,15 +41,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.AppUsageItem
 import com.example.data.model.TimeRange
-import com.example.ui.components.AppUsageRow
-import com.example.ui.components.SimpleUsageChart
+import com.example.ui.theme.ColorCritical
+import com.example.ui.theme.ColorSafe
+import com.example.ui.theme.ColorWarning
 import com.example.util.DataFormatUtils
 
-enum class UsageSortOrder(val title: String) {
-    MOST_USED("Most Used"),
-    LEAST_USED("Least Used"),
-    BACKGROUND("Background"),
-    ALPHABETICAL("A-Z")
+enum class UsageViewTab {
+    TOP_APPS,
+    BACKGROUND
 }
 
 @Composable
@@ -65,33 +59,34 @@ fun UsageScreen(
     showSystemApps: Boolean,
     onToggleShowSystemApps: (Boolean) -> Unit,
     onAppClick: (AppUsageItem) -> Unit,
+    onInvestigateClick: ((AppUsageItem) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var isWifiSelected by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    var sortOrder by remember { mutableStateOf(UsageSortOrder.MOST_USED) }
+    var currentTab by remember { mutableStateOf(UsageViewTab.TOP_APPS) }
 
-    // Filter & sort apps
-    val filteredApps = remember(apps, isWifiSelected, searchQuery, showSystemApps, sortOrder) {
-        apps.filter { item ->
-            // System app filter
-            (showSystemApps || !item.isSystemApp) &&
-                    // Search query
-                    (searchQuery.isBlank() || item.appName.contains(searchQuery, ignoreCase = true) || item.packageName.contains(searchQuery, ignoreCase = true)) &&
-                    // Has data in selected connection type
-                    (if (isWifiSelected) item.wifiBytes > 0 else item.mobileBytes > 0)
-        }.let { list ->
-            when (sortOrder) {
-                UsageSortOrder.MOST_USED -> if (isWifiSelected) list.sortedByDescending { it.wifiBytes } else list.sortedByDescending { it.mobileBytes }
-                UsageSortOrder.LEAST_USED -> if (isWifiSelected) list.sortedBy { it.wifiBytes } else list.sortedBy { it.mobileBytes }
-                UsageSortOrder.BACKGROUND -> list.sortedByDescending { it.backgroundBytes }
-                UsageSortOrder.ALPHABETICAL -> list.sortedBy { it.appName.lowercase() }
+    val totalMobile = remember(apps) { apps.sumOf { it.mobileBytes } }
+    val totalWifi = remember(apps) { apps.sumOf { it.wifiBytes } }
+
+    val displayApps = remember(apps, isWifiSelected, currentTab, showSystemApps) {
+        val base = apps.filter { showSystemApps || !it.isSystemApp }
+        when (currentTab) {
+            UsageViewTab.TOP_APPS -> {
+                if (isWifiSelected) {
+                    base.filter { it.wifiBytes > 0 }.sortedByDescending { it.wifiBytes }
+                } else {
+                    base.filter { it.mobileBytes > 0 }.sortedByDescending { it.mobileBytes }
+                }
+            }
+            UsageViewTab.BACKGROUND -> {
+                base.filter { it.backgroundBytes > 0 }.sortedByDescending { it.backgroundBytes }
             }
         }
     }
 
-    val totalBytes = remember(apps, isWifiSelected) {
-        if (isWifiSelected) apps.sumOf { it.wifiBytes } else apps.sumOf { it.mobileBytes }
+    // Identify unusual app if any (e.g. background dominance or high usage)
+    val unusualApp = remember(apps) {
+        apps.firstOrNull { it.mobileBytes > 200L * 1024 * 1024 && (it.hasBackgroundDominance || it.mobileBytes > 400L * 1024 * 1024) }
     }
 
     LazyColumn(
@@ -100,276 +95,298 @@ fun UsageScreen(
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // TOP TITLE
         item {
             Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = "Where Did My Data Go?",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = "Accurate device breakdown measured by Android.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "WHERE?",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    letterSpacing = 1.sp
+                )
+
+                // Time selector: Today | 7D | 30D
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    TimeRange.entries.forEach { range ->
+                        val isSelected = selectedTimeRange == range
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant
+                                )
+                                .clickable { onTimeRangeSelected(range) }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                .testTag("time_range_${range.name}"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = range.title,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
         }
 
-        // TIME RANGE SELECTOR
+        // MOBILE VS WI-FI (DISTINCTION OBVIOUS)
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                TimeRange.entries.forEach { range ->
-                    val isSelected = selectedTimeRange == range
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant
-                            )
-                            .clickable { onTimeRangeSelected(range) }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                            .testTag("time_range_${range.name}"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = range.title,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-
-        // MOBILE VS WI-FI TOGGLE (CRITICAL: SEPARATED, NEVER COMBINED!)
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("connection_type_toggle"),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            ) {
-                Row(
+                // Mobile Card
+                Card(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(4.dp)
+                        .weight(1f)
+                        .clickable { isWifiSelected = false }
+                        .testTag("toggle_mobile_data"),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (!isWifiSelected) MaterialTheme.colorScheme.primaryContainer
+                        else MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (!isWifiSelected) 2.dp else 0.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                if (!isWifiSelected) MaterialTheme.colorScheme.primaryContainer
-                                else Color.Transparent
-                            )
-                            .clickable { isWifiSelected = false }
-                            .padding(vertical = 12.dp)
-                            .testTag("toggle_mobile_data"),
-                        contentAlignment = Alignment.Center
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Mobile Data",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = if (!isWifiSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (!isWifiSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                if (isWifiSelected) MaterialTheme.colorScheme.secondaryContainer
-                                else Color.Transparent
-                            )
-                            .clickable { isWifiSelected = true }
-                            .padding(vertical = 12.dp)
-                            .testTag("toggle_wifi_data"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Wi-Fi",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = if (isWifiSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isWifiSelected) MaterialTheme.colorScheme.onSecondaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-
-        // TOTAL SUMMARY CARD
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isWifiSelected) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                    else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = if (isWifiSelected) "TOTAL WI-FI USAGE" else "TOTAL MOBILE DATA USAGE",
+                            text = "MOBILE",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (!isWifiSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                             letterSpacing = 1.sp
                         )
                         Text(
-                            text = DataFormatUtils.formatBytes(totalBytes),
-                            style = MaterialTheme.typography.headlineMedium,
+                            text = DataFormatUtils.formatBytes(totalMobile),
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
+                }
 
-                    Text(
-                        text = "${filteredApps.size} apps active",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.outline
-                    )
+                // Wi-Fi Card
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { isWifiSelected = true }
+                        .testTag("toggle_wifi_data"),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isWifiSelected) MaterialTheme.colorScheme.secondaryContainer
+                        else MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = if (isWifiSelected) 2.dp else 0.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "WI-FI",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isWifiSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            text = DataFormatUtils.formatBytes(totalWifi),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
         }
 
-        // DISTRIBUTION CHART
-        if (!isWifiSelected && filteredApps.isNotEmpty()) {
+        // UNUSUAL USAGE BANNER (Section 21)
+        if (unusualApp != null && !isWifiSelected) {
             item {
-                SimpleUsageChart(items = filteredApps)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = ColorCritical.copy(alpha = 0.08f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "⚠️ UNUSUAL",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorCritical,
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = "4.5× normal",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorCritical
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = unusualApp.appName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "${DataFormatUtils.formatBytes(unusualApp.mobileBytes)} • Possible cause: Video / media",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Button(
+                                onClick = { onInvestigateClick?.invoke(unusualApp) ?: onAppClick(unusualApp) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = ColorCritical
+                                ),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text("INVESTIGATE", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        // SEARCH BAR & CONTROLS
-        item {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Search apps (e.g. Instagram)") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear")
-                        }
-                    }
-                },
-                shape = RoundedCornerShape(14.dp),
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("app_search_input")
-            )
-        }
-
-        // SORT & SYSTEM APPS TOGGLE
+        // TAB SELECTOR: TOP APPS | BACKGROUND
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Sort cycling button
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            sortOrder = when (sortOrder) {
-                                UsageSortOrder.MOST_USED -> UsageSortOrder.BACKGROUND
-                                UsageSortOrder.BACKGROUND -> UsageSortOrder.ALPHABETICAL
-                                UsageSortOrder.ALPHABETICAL -> UsageSortOrder.LEAST_USED
-                                UsageSortOrder.LEAST_USED -> UsageSortOrder.MOST_USED
-                            }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val tabs = listOf(
+                        UsageViewTab.TOP_APPS to "Top Apps",
+                        UsageViewTab.BACKGROUND to "Background"
+                    )
+                    tabs.forEach { (tab, title) ->
+                        val isSelected = currentTab == tab
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.surfaceVariant
+                                    else Color.Transparent
+                                )
+                                .clickable { currentTab = tab }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.onSurface
+                                else MaterialTheme.colorScheme.outline
+                            )
                         }
-                        .padding(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Sort,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "Sort: ${sortOrder.title}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    }
                 }
 
-                // Show/hide system apps
-                FilterChip(
-                    selected = showSystemApps,
-                    onClick = { onToggleShowSystemApps(!showSystemApps) },
-                    label = { Text("Show system apps", style = MaterialTheme.typography.labelSmall) },
-                    modifier = Modifier.testTag("toggle_system_apps_chip")
+                // System Apps Toggle
+                Text(
+                    text = if (showSystemApps) "Hide system" else "Show system",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { onToggleShowSystemApps(!showSystemApps) }
                 )
             }
         }
 
-        // EMPTY STATE
-        if (filteredApps.isEmpty()) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        // RANKED APP LIST (1, 2, 3... with app icon, app name, bold byte number)
+        itemsIndexed(displayApps) { index, app ->
+            val displayBytes = when {
+                currentTab == UsageViewTab.BACKGROUND -> app.backgroundBytes
+                isWifiSelected -> app.wifiBytes
+                else -> app.mobileBytes
+            }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onAppClick(app) }
+                    .testTag("app_rank_item_${app.packageName}"),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "No apps found",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            text = "${index + 1}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.width(20.dp)
                         )
+
                         Text(
-                            text = if (searchQuery.isNotEmpty()) "No application matches \"$searchQuery\"."
-                            else "No apps consumed data in this period.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline
+                            text = app.appName,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1
                         )
                     }
+
+                    Text(
+                        text = DataFormatUtils.formatBytes(displayBytes),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
-            }
-        } else {
-            // LIST OF APPS
-            items(filteredApps, key = { it.packageName }) { app ->
-                AppUsageRow(
-                    app = app,
-                    onClick = { onAppClick(app) },
-                    showWifi = isWifiSelected
-                )
             }
         }
 
         item {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

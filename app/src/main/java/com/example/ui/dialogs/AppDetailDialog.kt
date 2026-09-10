@@ -15,14 +15,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.OpenInNew
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -40,9 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.example.data.model.AppCategory
 import com.example.data.model.AppUsageItem
-import com.example.ui.theme.ColorWarning
 import com.example.util.DataFormatUtils
 
 @Composable
@@ -53,20 +47,20 @@ fun AppDetailDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(22.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("app_detail_dialog")
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.padding(22.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Header
+                // Header with App Icon and Name
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     val bitmap = remember(app.icon) {
                         app.icon?.let { drawableToBitmap(it) }
@@ -76,13 +70,13 @@ fun AppDetailDialog(
                             bitmap = bitmap.asImageBitmap(),
                             contentDescription = app.appName,
                             modifier = Modifier
-                                .size(50.dp)
+                                .size(48.dp)
                                 .clip(RoundedCornerShape(12.dp))
                         )
                     } else {
                         Box(
                             modifier = Modifier
-                                .size(50.dp)
+                                .size(48.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
@@ -99,132 +93,64 @@ fun AppDetailDialog(
                     Column {
                         Text(
                             text = app.appName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = app.category.displayName,
-                            style = MaterialTheme.typography.labelMedium,
+                            text = "${DataFormatUtils.formatBytes(app.totalBytes)} • This month",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                // Measurement notice
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = "Measured by Android OS network stack",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-
-                // Breakdown Card
+                // Breakdown Grid / Metrics
                 Card(
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     )
                 ) {
                     Column(
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Mobile Data:", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                DataFormatUtils.formatBytes(app.mobileBytes),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                        MetricRow(label = "MOBILE", value = DataFormatUtils.formatBytes(app.mobileBytes))
+                        MetricRow(label = "WI-FI", value = DataFormatUtils.formatBytes(app.wifiBytes))
+                        if (app.foregroundBytes > 0) {
+                            MetricRow(label = "FOREGROUND", value = DataFormatUtils.formatBytes(app.foregroundBytes))
                         }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Wi-Fi Data:", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                DataFormatUtils.formatBytes(app.wifiBytes),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Foreground Active:", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                DataFormatUtils.formatBytes(app.foregroundBytes),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Background Silent:", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                DataFormatUtils.formatBytes(app.backgroundBytes),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (app.hasBackgroundDominance) ColorWarning else MaterialTheme.colorScheme.onSurface,
-                                fontWeight = if (app.hasBackgroundDominance) FontWeight.Bold else FontWeight.Normal
-                            )
+                        if (app.backgroundBytes > 0) {
+                            MetricRow(label = "BACKGROUND", value = DataFormatUtils.formatBytes(app.backgroundBytes))
                         }
                     }
                 }
 
-                // Category Context
-                Text(
-                    text = when (app.category) {
-                        AppCategory.VIDEO -> "Video apps use heavy bandwidth. Streaming at 1080p or 4K can use up to 1GB to 2GB per hour."
-                        AppCategory.SOCIAL -> "Social media feeds frequently pre-load stories, reels, and video clips in the background."
-                        AppCategory.CLOUD -> "Cloud storage and camera sync often upload photos and documents silently in the background."
-                        AppCategory.MESSAGING -> "Voice notes, media downloads, and group chats contribute to continuous data usage."
-                        else -> "Check in-app settings to adjust quality, sync frequency, or download behaviors."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // Control Action
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Close")
+                    }
 
-                // Actions
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
                             onDismiss()
                             onOpenAndroidSettings(app.packageName)
                         },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("app_detail_open_settings_button")
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Open Android App Settings")
-                    }
-
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Close")
+                        Text("CONTROL")
                     }
                 }
             }
@@ -232,14 +158,34 @@ fun AppDetailDialog(
     }
 }
 
+@Composable
+private fun MetricRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.outline,
+            letterSpacing = 0.8.sp
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
 private fun drawableToBitmap(drawable: Drawable): Bitmap {
-    val bitmap = Bitmap.createBitmap(
-        drawable.intrinsicWidth.coerceAtLeast(48),
-        drawable.intrinsicHeight.coerceAtLeast(48),
-        Bitmap.Config.ARGB_8888
-    )
+    val size = 96
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
-    drawable.setBounds(0, 0, canvas.width, canvas.height)
+    drawable.setBounds(0, 0, size, size)
     drawable.draw(canvas)
     return bitmap
 }

@@ -178,6 +178,10 @@ fun DataGuardApp(
                             onToggleShowSystemApps = { viewModel.setShowSystemApps(it) },
                             onAppClick = { app ->
                                 selectedAppForDetail = app
+                            },
+                            onInvestigateClick = { app ->
+                                currentTab = NavigationDestination.INVESTIGATE
+                                viewModel.runInvestigation(app.appName)
                             }
                         )
                     }
@@ -198,6 +202,9 @@ fun DataGuardApp(
                                 } else {
                                     PermissionUtils.openDataSaverSettings(context)
                                 }
+                            },
+                            onNavigateToControl = {
+                                currentTab = NavigationDestination.CONTROL
                             }
                         )
                     }
