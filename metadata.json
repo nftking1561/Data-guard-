@@ -1,0 +1,6 @@
+{
+  "name": "Data Guard",
+  "description": "Privacy-first Android mobile data intelligence and protection application.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
